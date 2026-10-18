@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>WisdomPolish Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@700&family=Source+Serif+4:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css"></head><body>
+<header class="top"><a class="logo h" href="/"><span class="dots"><i style="background:#FF7A1A"></i><i style="background:#00A896"></i><i style="background:#D6336C"></i></span>WisdomPolish</a><span class="meta">Admin</span></header>
+<div class="stripe"></div>
+<main>
+<section id="login"><h1 class="h">Sign in</h1>
+<form id="lf" class="stack"><label for="pw">Admin password</label><input id="pw" type="password" autocomplete="current-password" required><button class="btn" type="submit">Sign in</button><p id="le" class="msg err" role="alert"></p></form></section>
+<section id="app" hidden>
+<div class="tabs" role="tablist"><button class="btn on" data-tab="new">Write</button><button class="btn alt" data-tab="arts">Articles</button><button class="btn alt" data-tab="cms">Comments</button><button class="btn alt" data-tab="subs">Subscribers</button><button class="btn alt sm" id="out">Sign out</button></div>
+
+<div id="new" class="tab"><h1 class="h" id="ft">Write a new article</h1>
+<div class="stack"><label for="t">Title (මාතෘකාව)</label><input id="t" maxlength="200">
+<label for="b">Article (ලිපිය) — leave a blank line between paragraphs</label><textarea id="b"></textarea>
+<div id="ph"><label for="im">Photos (පින්තූර) — the WisdomPolish watermark is added automatically</label><input id="im" type="file" accept="image/*" multiple><div class="thumbs" id="th"></div></div>
+<p class="meta" id="pn" hidden>Photos cannot be changed when editing. Only the title and text.</p>
+<div class="row" style="margin-top:16px"><button class="btn" id="pub">Publish</button><button class="btn alt" id="cx" hidden>Cancel editing</button></div>
+<p id="st" class="msg" role="status"></p></div></div>
+
+<div id="arts" class="tab" hidden></div><div id="cms" class="tab" hidden></div><div id="subs" class="tab" hidden></div>
+</section></main>
+<script>
+var KEY=localStorage.getItem('wpk')||'',D=null,edit=null,pics=[];
+function $(i){return document.getElementById(i)}
+function E(t,c,x){var n=document.createElement(t);if(c)n.className=c;if(x!=null)n.textContent=x;return n}
+function btn(txt,fn,alt){var b=E('button','btn sm'+(alt?' alt':''),txt);b.onclick=fn;return b}
+function api(action,data){
+  return fetch('/api/admin',{method:'POST',headers:{'content-type':'application/json','x-admin-key':KEY},body:JSON.stringify(Object.assign({action:action},data||{}))})
+  .then(function(r){return r.json().catch(function(){return{}}).then(function(j){if(!r.ok){var e=new Error(j.error||'Something went wrong');e.status=r.status;throw e}return j})});
+}
+function load(){return api('list').then(function(d){D=d;renderArts();renderCms();renderSubs()})}
+function show(){$('login').hidden=true;$('app').hidden=false}
+$('lf').onsubmit=function(e){e.preventDefault();KEY=$('pw').value;$('le').textContent='';
+  load().then(function(){localStorage.setItem('wpk',KEY);show()}).catch(function(x){$('le').textContent=x.status===401?'That password is not correct.':'Could not connect. Please try again.'})};
+$('out').onclick=function(){localStorage.removeItem('wpk');location.reload()};
+if(KEY)load().then(show).catch(function(){});
+document.querySelectorAll('[data-tab]').forEach(function(b){b.onclick=function(){
+  document.querySelectorAll('.tab').forEach(function(t){t.hidden=t.id!==b.dataset.tab});
+  document.querySelectorAll('[data-tab]').forEach(function(x){x.className='btn '+(x===b?'on':'alt')})}});
+function go(tab){document.querySelector('[data-tab="'+tab+'"]').click()}
+function say(m,bad,href){var s=$('st');s.textContent=m;s.className='msg'+(bad?' err':'');
+  if(href){var a=E('a',null,'View article');a.href=href;a.target='_blank';s.append(' ',a)}}
+
+function watermark(file){return new Promise(function(res,rej){
+  var u=URL.createObjectURL(file),i=new Image();
+  i.onload=function(){var k=Math.min(1,1200/i.width),w=Math.round(i.width*k),h=Math.round(i.height*k),c=document.createElement('canvas');
+    c.width=w;c.height=h;var x=c.getContext('2d');x.drawImage(i,0,0,w,h);
+    var f=Math.max(16,Math.round(w/26));x.font='700 '+f+'px "Bricolage Grotesque",Arial,sans-serif';
+    x.textAlign='right';x.textBaseline='bottom';x.shadowColor='rgba(0,0,0,.6)';x.shadowBlur=f/3;x.fillStyle='rgba(255,255,255,.9)';
+    x.fillText('WisdomPolish',w-f*.6,h-f*.5);URL.revokeObjectURL(u);res(c.toDataURL('image/jpeg',.82))};
+  i.onerror=function(){URL.revokeObjectURL(u);rej()};i.src=u})}
+function thumbs(){var t=$('th');t.replaceChildren();pics.forEach(function(u,n){var d=E('div'),g=E('img'),x=E('button','','×');
+  g.src=u;g.alt='';x.setAttribute('aria-label','Remove photo');x.onclick=function(){pics.splice(n,1);thumbs()};d.append(g,x);t.append(d)})}
+$('im').onchange=function(){say('Adding watermark…');
+  Promise.all(Array.prototype.map.call($('im').files,watermark)).then(function(r){pics=pics.concat(r).slice(0,6);$('im').value='';thumbs();say('')},function(){say('One file could not be read as a photo.',1)})};
+
+function resetForm(){edit=null;pics=[];$('t').value='';$('b').value='';thumbs();$('ft').textContent='Write a new article';$('pub').textContent='Publish';$('ph').hidden=false;$('pn').hidden=true;$('cx').hidden=true}
+$('cx').onclick=function(){resetForm();say('')};
+$('pub').onclick=function(){
+  var t=$('t').value.trim(),b=$('b').value.trim();
+  if(!t||!b){say('Please add a title and the article text.',1);return}
+  $('pub').disabled=true;say('Publishing…');
+  (edit?api('update',{id:edit,title:t,body:b}):api('create',{title:t,body:b,images:pics}))
+  .then(function(r){resetForm();say('Published! ',0,'/a/'+r.slug);return load()})
+  .catch(function(x){say(x.message==='Invalid image'?'A photo is too large. Try a smaller one.':x.message,1)})
+  .then(function(){$('pub').disabled=false});
+};
+
+function renderArts(){var p=$('arts');p.replaceChildren();p.append(E('h1','h','Articles'));
+  if(!D.articles.length)p.append(E('p','meta','No articles yet.'));
+  D.articles.forEach(function(a){var it=E('div','item');it.append(E('strong',null,a.title),E('p','meta',a.created_at.slice(0,10)));
+    var r=E('div','row'),v=E('a','btn sm alt','View');v.href='/a/'+a.slug;v.target='_blank';
+    var d=btn('Delete',function(){if(d.dataset.arm!=='1'){d.dataset.arm='1';d.textContent='Click again to delete';return}
+      api('delete',{id:a.id}).then(load).catch(function(x){alert(x.message)})},1);
+    r.append(v,btn('Edit',function(){edit=a.id;$('t').value=a.title;$('b').value=a.body;pics=[];thumbs();
+      $('ft').textContent='Edit article';$('pub').textContent='Save changes';$('ph').hidden=true;$('pn').hidden=false;$('cx').hidden=false;say('');go('new');scrollTo(0,0)},1),d);
+    it.append(r);p.append(it)})}
+function renderCms(){var p=$('cms');p.replaceChildren();p.append(E('h1','h','Comments'));
+  if(!D.comments.length)p.append(E('p','meta','No comments yet.'));
+  D.comments.forEach(function(c){var it=E('div','item');
+    it.append(E('strong',null,c.name+(c.approved?'':'  (waiting for approval)')),E('p',null,c.body),E('p','meta','On: '+(c.title||'deleted article')));
+    var r=E('div','row');
+    if(!c.approved)r.append(btn('Approve',function(){api('comment_approve',{id:c.id}).then(load)}));
+    r.append(btn('Delete',function(){api('comment_delete',{id:c.id}).then(load)},1));it.append(r);p.append(it)})}
+function renderSubs(){var p=$('subs');p.replaceChildren();p.append(E('h1','h','Subscribers'),E('p',null,D.subscribers.length+' subscriber'+(D.subscribers.length===1?'':'s')));
+  if(D.subscribers.length){p.append(btn('Download list (CSV)',function(){
+    var csv='email,subscribed\n'+D.subscribers.map(function(s){return s.email+','+s.created_at}).join('\n');
+    var a=E('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='subscribers.csv';a.click()}));
+    D.subscribers.slice(0,100).forEach(function(s){p.append(E('p','meta',s.email))})}}
+</script></body></html>
