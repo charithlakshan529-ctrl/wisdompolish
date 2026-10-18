@@ -33,3 +33,4 @@ Google Search Console (search.google.com/search-console) → ඔබේ සයි
 - **Affiliate links**: ලිපියක https:// link එකක් ලිව්වාම ඉබේම link එකක් වෙනවා (rel="sponsored" සහිතව).
 - **Email list**: Admin → Subscribers වලින් CSV එකක් බාගත කරන්න පුළුවන්.
 - EU/UK අයට ads පෙන්වන්න consent banner එකක් Google ඉල්ලනවා. AdSense දාන්න කලින් ඒක බලන්න. privacy පිටුව (`functions/privacy.js`) ඔබේම තොරතුරු වලට වෙනස් කරගන්න.
+
